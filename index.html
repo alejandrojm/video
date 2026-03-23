@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Curso Online — Reproductor Interactivo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12151c;
+    --surface2: #1a1f2b;
+    --accent: #00e5ff;
+    --accent2: #7c3aed;
+    --success: #00e676;
+    --error: #ff1744;
+    --text: #e8eaf0;
+    --text-muted: #6b7280;
+    --radius: 12px;
+    --player-bg: #000;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sora', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  /* Header */
+  .course-header {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .course-badge {
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    color: #fff;
+  }
+  .course-title {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 300;
+    letter-spacing: .04em;
+  }
+
+  /* Player wrapper */
+  .player-wrap {
+    width: 100%;
+    max-width: 900px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.05);
+    position: relative;
+  }
+
+  /* Video container — always 16:9 */
+  .video-box {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: var(--player-bg);
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Big play button overlay */
+  .big-play {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.4);
+    transition: opacity .25s;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .big-play svg { width: 72px; height: 72px; filter: drop-shadow(0 4px 16px rgba(0,0,0,.5)); }
+  .big-play.hidden { opacity: 0; }
+
+  /* Quiz overlay */
+  .quiz-overlay {
+    position: absolute; inset: 0;
+    background: rgba(5, 7, 12, 0.88);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .4s ease;
+  }
+  .quiz-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .quiz-card {
+    background: var(--surface2);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+    padding: 36px 40px;
+    max-width: 540px;
+    width: 90%;
+    box-shadow: 0 32px 80px rgba(0,0,0,.6);
+    transform: translateY(20px) scale(.96);
+    transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .4s ease;
+  }
+  .quiz-overlay.active .quiz-card {
+    transform: translateY(0) scale(1);
+  }
+
+  .quiz-chip {
+    display: inline-block;
+    background: rgba(0,229,255,.12);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(0,229,255,.25);
+    margin-bottom: 18px;
+  }
+
+  .quiz-question {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.55;
+    margin-bottom: 28px;
+    color: var(--text);
+  }
+
+  .quiz-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .quiz-option {
+    background: rgba(255,255,255,.04);
+    border: 1.5px solid rgba(255,255,255,.1);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all .2s ease;
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'Sora', sans-serif;
+  }
+  .quiz-option:hover {
+    border-color: var(--accent);
+    background: rgba(0,229,255,.06);
+    transform: translateX(3px);
+  }
+  .quiz-option .opt-num {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+    transition: all .2s;
+  }
+  .quiz-option:hover .opt-num {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .quiz-option.correct {
+    border-color: var(--success);
+    background: rgba(0,230,118,.1);
+    pointer-events: none;
+  }
+  .quiz-option.correct .opt-num {
+    background: var(--success);
+    border-color: var(--success);
+    color: #000;
+  }
+  .quiz-option.wrong {
+    border-color: var(--error);
+    background: rgba(255,23,68,.08);
+    pointer-events: none;
+  }
+  .quiz-option.wrong .opt-num {
+    background: var(--error);
+    border-color: var(--error);
+    color: #fff;
+  }
+  .quiz-option.disabled {
+    pointer-events: none;
+    opacity: .5;
+  }
+
+  /* Feedback */
+  .quiz-feedback {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 12px;
+    border-radius: 8px;
+    display: none;
+    margin-top: 4px;
+  }
+  .quiz-feedback.show { display: block; }
+  .quiz-feedback.correct-msg {
+    color: var(--success);
+    background: rgba(0,230,118,.1);
+  }
+  .quiz-feedback.wrong-msg {
+    color: var(--error);
+    background: rgba(255,23,68,.08);
+  }
+
+  .continue-btn {
+    display: none;
+    margin: 20px auto 0;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border: none; border-radius: 8px;
+    color: #fff; font-family: 'Sora', sans-serif;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s, transform .15s;
+    letter-spacing: .03em;
+  }
+  .continue-btn:hover { opacity: .88; transform: scale(1.03); }
+  .continue-btn.show { display: block; }
+
+  /* Controls bar */
+  .controls {
+    background: var(--surface);
+    padding: 10px 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 1px solid rgba(255,255,255,.04);
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    position: relative;
+    height: 4px;
+    background: rgba(255,255,255,.1);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: height .15s;
+  }
+  .progress-wrap:hover { height: 6px; }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 4px;
+    width: 0%;
+    pointer-events: none;
+    position: relative;
+  }
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: -5px; top: 50%;
+    transform: translateY(-50%) scale(0);
+    width: 12px; height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    transition: transform .15s;
+  }
+  .progress-wrap:hover .progress-fill::after { transform: translateY(-50%) scale(1); }
+  /* Quiz marker */
+  .quiz-marker {
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    width: 8px; height: 8px;
+    background: #ffca28;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 2;
+    box-shadow: 0 0 6px #ffca28;
+  }
+
+  .controls-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ctrl-btn {
+    background: none; border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    transition: color .15s, background .15s;
+    flex-shrink: 0;
+  }
+  .ctrl-btn:hover { color: var(--text); background: rgba(255,255,255,.06); }
+  .ctrl-btn svg { width: 20px; height: 20px; }
+  .ctrl-btn.big svg { width: 26px; height: 26px; }
+
+  .time-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Volume */
+  .volume-wrap {
+    display: flex; align-items: center; gap: 8px;
+    flex-shrink: 0;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 72px; height: 4px;
+    border-radius: 4px;
+    background: rgba(255,255,255,.15);
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .spacer { flex: 1; }
+
+  /* Confetti canvas */
+  #confetti-canvas {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    .quiz-card { padding: 24px 20px; }
+    .quiz-question { font-size: 15px; }
+    input[type=range] { width: 52px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<header class="course-header">
+  <span class="course-badge">Módulo 1</span>
+  <span class="course-title">Clasificación de Sistemas de Aeronaves no Tripuladas</span>
+</header>
+
+<div class="player-wrap">
+
+  <!-- Video area -->
+  <div class="video-box" id="videoBox">
+    <video id="vid" preload="metadata">
+      <source src="video.mp4" type="video/mp4">
+      Tu navegador no soporta la reproducción de video.
+    </video>
+
+    <!-- Big play button -->
+    <div class="big-play" id="bigPlay">
+      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="40" cy="40" r="40" fill="rgba(255,255,255,.15)"/>
+        <circle cx="40" cy="40" r="38" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+        <polygon points="32,24 60,40 32,56" fill="white"/>
+      </svg>
+    </div>
+
+    <!-- Quiz overlay -->
+    <div class="quiz-overlay" id="quizOverlay">
+      <div class="quiz-card" id="quizCard">
+        <div class="quiz-chip">✦ Pregunta de comprensión</div>
+        <div class="quiz-question">¿Qué peso máximo de despegue tiene un dron <em>Pequeño</em>?</div>
+        <div class="quiz-options" id="quizOptions">
+          <button class="quiz-option" data-idx="0" onclick="selectAnswer(0)">
+            <span class="opt-num">1</span>
+            2 kg o menos
+          </button>
+          <button class="quiz-option" data-idx="1" onclick="selectAnswer(1)">
+            <span class="opt-num">2</span>
+            Más de 2 kg hasta 25 kg
+          </button>
+          <button class="quiz-option" data-idx="2" onclick="selectAnswer(2)">
+            <span class="opt-num">3</span>
+            Más de 25 kg
+          </button>
+        </div>
+        <div class="quiz-feedback" id="quizFeedback"></div>
+        <button class="continue-btn" id="continueBtn" onclick="continueVideo()">
+          Continuar video →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <!-- Progress -->
+    <div class="progress-wrap" id="progressWrap" onclick="seekVideo(event)">
+      <div class="progress-fill" id="progressFill"></div>
+      <!-- Quiz marker will be inserted by JS -->
+    </div>
+
+    <!-- Buttons row -->
+    <div class="controls-row">
+      <!-- Play/Pause -->
+      <button class="ctrl-btn big" id="playBtn" onclick="togglePlay()" title="Reproducir / Pausar">
+        <svg id="iconPlay" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        <svg id="iconPause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="5" y="3" width="4" height="18" rx="1"/><rect x="15" y="3" width="4" height="18" rx="1"/></svg>
+      </button>
+
+      <!-- Volume -->
+      <div class="volume-wrap">
+        <button class="ctrl-btn" id="muteBtn" onclick="toggleMute()" title="Silenciar">
+          <svg id="iconVol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+            <path d="M15.54,8.46a5,5,0,0,1,0,7.07"/>
+            <path d="M19.07,4.93a10,10,0,0,1,0,14.14"/>
+          </svg>
+          <svg id="iconMute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none">
+            <polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/>
+            <line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+          </svg>
+        </button>
+        <input type="range" id="volSlider" min="0" max="1" step="0.02" value="1" oninput="setVolume(this.value)" title="Volumen">
+      </div>
+
+      <!-- Time -->
+      <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+
+      <div class="spacer"></div>
+
+      <!-- Fullscreen -->
+      <button class="ctrl-btn" id="fsBtn" onclick="toggleFullscreen()" title="Pantalla completa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15,3 21,3 21,9"/><polyline points="9,21 3,21 3,15"/>
+          <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const vid = document.getElementById('vid');
+const bigPlay = document.getElementById('bigPlay');
+const playBtn = document.getElementById('playBtn');
+const iconPlay = document.getElementById('iconPlay');
+const iconPause = document.getElementById('iconPause');
+const iconVol = document.getElementById('iconVol');
+const iconMute = document.getElementById('iconMute');
+const progressFill = document.getElementById('progressFill');
+const progressWrap = document.getElementById('progressWrap');
+const timeDisplay = document.getElementById('timeDisplay');
+const quizOverlay = document.getElementById('quizOverlay');
+const quizFeedback = document.getElementById('quizFeedback');
+const continueBtn = document.getElementById('continueBtn');
+const videoBox = document.getElementById('videoBox');
+
+// Quiz config
+const QUIZ_TIME = 110; // 1 min 50 sec
+let quizTriggered = false;
+let quizAnswered = false;
+let correctAnswer = 1; // index 1 = "Más de 2 kg hasta 25 kg"
+
+// Place quiz marker on timeline
+vid.addEventListener('loadedmetadata', () => {
+  const pct = (QUIZ_TIME / vid.duration) * 100;
+  const marker = document.createElement('div');
+  marker.className = 'quiz-marker';
+  marker.style.left = pct + '%';
+  marker.title = 'Pregunta en 1:50';
+  progressWrap.appendChild(marker);
+  updateTime();
+});
+
+// Toggle play/pause
+function togglePlay() {
+  if (vid.paused) { vid.play(); } else { vid.pause(); }
+}
+videoBox.addEventListener('click', (e) => {
+  if (e.target === videoBox || e.target === vid) togglePlay();
+});
+
+vid.addEventListener('play', () => {
+  iconPlay.style.display = 'none';
+  iconPause.style.display = '';
+  bigPlay.classList.add('hidden');
+});
+vid.addEventListener('pause', () => {
+  iconPlay.style.display = '';
+  iconPause.style.display = 'none';
+  if (!quizOverlay.classList.contains('active')) bigPlay.classList.remove('hidden');
+});
+
+// Time update → progress + quiz trigger
+vid.addEventListener('timeupdate', () => {
+  updateProgress();
+  updateTime();
+  if (!quizTriggered && vid.currentTime >= QUIZ_TIME) {
+    triggerQuiz();
+  }
+});
+
+function updateProgress() {
+  if (!vid.duration) return;
+  progressFill.style.width = (vid.currentTime / vid.duration * 100) + '%';
+}
+
+function updateTime() {
+  timeDisplay.textContent = fmt(vid.currentTime) + ' / ' + fmt(vid.duration || 0);
+}
+
+function fmt(s) {
+  if (isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+function seekVideo(e) {
+  if (!vid.duration) return;
+  const r = progressWrap.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  vid.currentTime = pct * vid.duration;
+}
+
+// Volume
+function setVolume(v) {
+  vid.volume = v;
+  vid.muted = v == 0;
+  iconVol.style.display = v == 0 ? 'none' : '';
+  iconMute.style.display = v == 0 ? '' : 'none';
+}
+function toggleMute() {
+  vid.muted = !vid.muted;
+  iconVol.style.display = vid.muted ? 'none' : '';
+  iconMute.style.display = vid.muted ? '' : 'none';
+}
+
+// Fullscreen
+function toggleFullscreen() {
+  const el = document.querySelector('.player-wrap');
+  if (!document.fullscreenElement) {
+    el.requestFullscreen && el.requestFullscreen();
+  } else {
+    document.exitFullscreen && document.exitFullscreen();
+  }
+}
+
+// ── Quiz ──
+function triggerQuiz() {
+  quizTriggered = true;
+  vid.pause();
+  bigPlay.classList.add('hidden');
+  // Reset quiz state
+  quizAnswered = false;
+  quizFeedback.className = 'quiz-feedback';
+  quizFeedback.textContent = '';
+  continueBtn.classList.remove('show');
+  document.querySelectorAll('.quiz-option').forEach(b => {
+    b.classList.remove('correct', 'wrong', 'disabled');
+  });
+  quizOverlay.classList.add('active');
+}
+
+function selectAnswer(idx) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+
+  const opts = document.querySelectorAll('.quiz-option');
+  opts.forEach(b => b.classList.add('disabled'));
+
+  if (idx === correctAnswer) {
+    opts[idx].classList.add('correct');
+    quizFeedback.textContent = '¡Correcto! 🎯';
+    quizFeedback.className = 'quiz-feedback show correct-msg';
+    launchConfetti();
+  } else {
+    opts[idx].classList.add('wrong');
+    opts[correctAnswer].classList.add('correct');
+    quizFeedback.textContent = 'Respuesta Incorrecta. La respuesta correcta es la opción 2.';
+    quizFeedback.className = 'quiz-feedback show wrong-msg';
+  }
+
+  setTimeout(() => continueBtn.classList.add('show'), 600);
+}
+
+function continueVideo() {
+  quizOverlay.classList.remove('active');
+  vid.play();
+}
+
+// ── Confetti ──
+const canvas = document.getElementById('confetti-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let animId = null;
+
+function launchConfetti() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  particles = [];
+  const colors = ['#00e5ff','#7c3aed','#00e676','#ffca28','#ff4081','#fff'];
+  for (let i = 0; i < 160; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * -canvas.height * .5,
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 5 + 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI * 2,
+      vx: (Math.random() - .5) * 4,
+      vy: Math.random() * 4 + 2,
+      vr: (Math.random() - .5) * .12,
+      life: 1
+    });
+  }
+  if (animId) cancelAnimationFrame(animId);
+  animateConfetti();
+}
+
+function animateConfetti() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+    p.vy += .07; // gravity
+    if (p.y > canvas.height) p.life = 0;
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.globalAlpha = Math.min(1, p.life);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    ctx.restore();
+  });
+  if (particles.length > 0) {
+    animId = requestAnimationFrame(animateConfetti);
+  } else {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+</script>
+</body>
+</html>
